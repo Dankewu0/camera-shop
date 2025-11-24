@@ -9,9 +9,8 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// Получаем активные заказы
 $activeOrders = $pdo->prepare("
-    SELECT o.*, u.full_name, u.phone, u.address
+    SELECT o.*, u.full_name
     FROM orders o
     LEFT JOIN user_order_info u ON o.user_info_id = u.id
     WHERE o.user_id = :uid AND o.status NOT IN ('Завершен', 'Отменен')
@@ -20,9 +19,8 @@ $activeOrders = $pdo->prepare("
 $activeOrders->execute(['uid' => $userId]);
 $activeOrders = $activeOrders->fetchAll(PDO::FETCH_ASSOC);
 
-// Получаем архивные заказы
 $archivedOrders = $pdo->prepare("
-    SELECT o.*, u.full_name, u.phone, u.address
+    SELECT o.*, u.full_name
     FROM orders o
     LEFT JOIN user_order_info u ON o.user_info_id = u.id
     WHERE o.user_id = :uid AND o.status IN ('Завершен', 'Отменен')
@@ -51,8 +49,7 @@ $archivedOrders = $archivedOrders->fetchAll(PDO::FETCH_ASSOC);
                 <div class="order-id">Заказ #<?= htmlspecialchars($order['id']) ?></div>
                 <div class="order-date">Дата: <?= date("d.m.Y", strtotime($order['created_at'])) ?></div>
                 <div class="order-status">Статус: <?= htmlspecialchars($order['status']) ?></div>
-                <div class="order-description">Адрес: <?= htmlspecialchars($order['address'] ?? 'Не указан') ?></div>
-                <div class="order-phone">Телефон: <?= htmlspecialchars($order['phone'] ?? '-') ?></div>
+                <div class="order-description">Сумма заказа: <?= number_format($order['total_price'], 0, ',', ' ') ?> руб.</div>
             </div>
         <?php endforeach; ?>
     <?php else: ?>
@@ -68,8 +65,7 @@ $archivedOrders = $archivedOrders->fetchAll(PDO::FETCH_ASSOC);
                 <div class="order-id">Заказ #<?= htmlspecialchars($order['id']) ?></div>
                 <div class="order-date">Дата: <?= date("d.m.Y", strtotime($order['created_at'])) ?></div>
                 <div class="order-status">Статус: <?= htmlspecialchars($order['status']) ?></div>
-                <div class="order-description">Адрес: <?= htmlspecialchars($order['address'] ?? 'Не указан') ?></div>
-                <div class="order-phone">Телефон: <?= htmlspecialchars($order['phone'] ?? '-') ?></div>
+                <div class="order-description">Сумма заказа: <?= number_format($order['total_price'], 0, ',', ' ') ?> руб.</div>
             </div>
         <?php endforeach; ?>
     <?php else: ?>
@@ -86,7 +82,6 @@ $archivedOrders = $archivedOrders->fetchAll(PDO::FETCH_ASSOC);
         <div class="footer-column">
             <h3>Контакты</h3>
             <p>Email: info@example.com</p>
-            <p>Телефон: +7 (999) 123-45-67</p>
             <p>Адрес: Москва, ул. Примерная, 123</p>
         </div>
     </div>

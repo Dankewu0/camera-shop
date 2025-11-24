@@ -6,37 +6,65 @@ $logged = isset($_SESSION['user_id']);
 $userId = $logged ? $_SESSION['user_id'] : null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['pay']) && $logged) {
+        $selected = $_POST['selected'] ?? [];
+        if (count($selected) > 0) {
+            $in = implode(',', array_fill(0, count($selected), '?'));
+            $stmt = $pdo->prepare("
+                SELECT ci.id AS cart_item_id, p.id AS product_id, p.price, ci.quantity
+                FROM cart_items ci
+                JOIN cart c ON c.id = ci.cart_id
+                JOIN products p ON p.id = ci.product_id
+                WHERE c.user_id = ?
+                AND ci.id IN ($in)
+            ");
+            $stmt->execute(array_merge([$userId], $selected));
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $total = 0;
+            foreach ($items as $i) $total += $i['price'] * $i['quantity'];
+
+            $pdo->prepare("INSERT INTO orders (user_id, total_price, status, created_at) VALUES (?, ?, 'new', NOW())")
+                ->execute([$userId, $total]);
+            $orderId = $pdo->lastInsertId();
+
+            $iStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+            foreach ($items as $i) {
+                $iStmt->execute([$orderId, $i['product_id'], $i['quantity'], $i['price']]);
+            }
+
+            $pdo->prepare("DELETE FROM cart_items WHERE id IN ($in) AND cart_id IN (SELECT id FROM cart WHERE user_id = ?)")
+                ->execute(array_merge($selected, [$userId]));
+
+            header("Location: order_success.php");
+            exit;
+        }
+    }
+
     if (!$logged) {
         if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
-
         if (isset($_POST['update'])) {
             $id = $_POST['item_id'];
             $qty = max(1, (int)($_POST['quantity'] ?? 1));
             if (isset($_SESSION['cart'][$id])) $_SESSION['cart'][$id]['quantity'] = $qty;
         }
-
         if (isset($_POST['delete'])) {
             $id = $_POST['item_id'];
             unset($_SESSION['cart'][$id]);
         }
-
-        header('Location: cart.php');
-        exit;
+    } else {
+        if (isset($_POST['update'])) {
+            $itemId = (int)($_POST['item_id'] ?? 0);
+            $qty = max(1, (int)($_POST['quantity'] ?? 1));
+            $pdo->prepare("UPDATE cart_items SET quantity = :q WHERE id = :id AND cart_id IN (SELECT id FROM cart WHERE user_id = :uid)")
+                ->execute(['q' => $qty, 'id' => $itemId, 'uid' => $userId]);
+        }
+        if (isset($_POST['delete'])) {
+            $itemId = (int)($_POST['item_id'] ?? 0);
+            $pdo->prepare("DELETE FROM cart_items WHERE id = :id AND cart_id IN (SELECT id FROM cart WHERE user_id = :uid)")
+                ->execute(['id' => $itemId, 'uid' => $userId]);
+        }
     }
-
-    if (isset($_POST['update'])) {
-        $itemId = (int)($_POST['item_id'] ?? 0);
-        $qty = max(1, (int)($_POST['quantity'] ?? 1));
-        $pdo->prepare("UPDATE cart_items SET quantity = :q WHERE id = :id AND cart_id IN (SELECT id FROM cart WHERE user_id = :uid)")
-            ->execute(['q' => $qty, 'id' => $itemId, 'uid' => $userId]);
-    }
-
-    if (isset($_POST['delete'])) {
-        $itemId = (int)($_POST['item_id'] ?? 0);
-        $pdo->prepare("DELETE FROM cart_items WHERE id = :id AND cart_id IN (SELECT id FROM cart WHERE user_id = :uid)")
-            ->execute(['id' => $itemId, 'uid' => $userId]);
-    }
-
     header('Location: cart.php');
     exit;
 }
@@ -76,9 +104,7 @@ if ($logged) {
                 'quantity' => $_SESSION['cart'][$p['id']]['quantity']
             ];
         }
-    } else {
-        $cartItems = [];
-    }
+    } else $cartItems = [];
 }
 ?>
 <!DOCTYPE html>
@@ -98,24 +124,23 @@ if ($logged) {
 <div class="cart-layout">
 <div class="cart-items">
 <h2 class="cart-text">Ваши товары</h2>
+<form method="post">
 <?php
 $totalPrice = 0;
 foreach ($cartItems as $i):
 $totalPrice += $i['price'] * $i['quantity'];
 ?>
 <div class="item">
-<input type="checkbox" id="item<?=$i['id']?>" class="item-checkbox">
+<input type="checkbox" name="selected[]" value="<?=$i['item_id']?>" id="item<?=$i['id']?>" class="item-checkbox">
 <label for="item<?=$i['id']?>" class="item-label">
 <div class="item-info">
 <div class="item-name"><?=$i['name']?></div>
 <div class="item-price">Цена: <?=$i['price']?> руб.</div>
 <div class="item-quantity">
-<form method="post" style="display: flex; gap: 8px; align-items:center;">
 <input type="hidden" name="item_id" value="<?=$i['item_id']?>">
 <input type="number" name="quantity" value="<?=$i['quantity']?>" min="1" style="width: 70px;">
 <button type="submit" name="update">Сохранить</button>
 <button type="submit" name="delete">Удалить</button>
-</form>
 </div>
 </div>
 </label>
@@ -153,7 +178,8 @@ $totalPrice += $i['price'] * $i['quantity'];
 <p>Оплата через приложение банка.</p>
 </div>
 
-<button class="pay-button">Оплатить</button>
+<button class="pay-button" type="submit" name="pay">Оплатить</button>
+</form>
 </div>
 </div>
 </div>

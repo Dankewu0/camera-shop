@@ -870,3 +870,51 @@ section h2 {
 .card:hover .text-index {
   display: block;
 }
+.review {
+  display: block;
+  font-family: Arial, sans-serif;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.detail-comment-form .review h3 {
+  font-size: 1.3em;
+  margin-bottom: 8px;
+}
+
+.detail-comment-form .review select,
+.detail-comment-form .review textarea,
+.detail-comment-form .review button {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.detail-comment-form .review button {
+  background-color: #ffc107;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.detail-comment-form .review button:hover {
+  background-color: #e0a800;
+}
+
+.detail-comment-form .review textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.detail-comment-form .review label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
